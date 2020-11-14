@@ -1,7 +1,6 @@
 package main
 
 import (
-    "strconv"
     "net/http"
     "github.com/gin-gonic/gin"
     "database/sql"
@@ -19,10 +18,11 @@ type Todo struct {
 var DB sql.DB
 
 func init() {
-    DB, err := sql.Open("progres", os.Getenv("DATABASE_URL"))
+    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
     if err != nil {
         log.Fatal("DB connection error", err)
     }
+    DB = *db
 }
 
 func getTodosHandler(c *gin.Context) {
@@ -30,15 +30,17 @@ func getTodosHandler(c *gin.Context) {
     preparedStatement := "SELECT id, title, status FROM todos"
     filterNum := 0
     if len(statusFilter) != 0 {
-        preparedStatement += " WHERE status = " + statusFilter
+        preparedStatement += " WHERE status = '" + statusFilter + "'"
         filterNum++
     }
     titleFilter := c.Query("title")
     if len(titleFilter) != 0 {
         if filterNum == 0 {
-            preparedStatement += " WHERE"
+            preparedStatement += " WHERE "
+        } else {
+            preparedStatement += " AND "
         }
-        preparedStatement += " title = " + title
+        preparedStatement += " title = '" + titleFilter + "'"
     }
     stmt, err := DB.Prepare(preparedStatement)
     if err != nil {
@@ -60,13 +62,8 @@ func getTodosHandler(c *gin.Context) {
     c.JSON(http.StatusOK, todos)
 }
 
-func getTodoHandler(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, err)
-        return
-    }
-    preparedStatement := "SELECT id, title, status FROM todos WHERE id = " + id
+func getTodoByIDHandler(c *gin.Context) {
+    preparedStatement := "SELECT id, title, status FROM todos WHERE id = " + c.Param("id")
     stmt, err := DB.Prepare(preparedStatement)
     if err != nil {
         c.JSON(http.StatusBadRequest, err)
@@ -78,12 +75,15 @@ func getTodoHandler(c *gin.Context) {
         return
     }
 
+    var t Todo
     for rows.Next() {
-        t := Todo{}
         rows.Scan(&t.ID, &t.Title, &t.Status)
-        todos = append(todos, t)
     }
-    c.JSON(http.StatusOK, todos[0])
+    if t.ID == 0 {
+        c.JSON(http.StatusOK, gin.H{})
+    } else {
+        c.JSON(http.StatusOK, t)
+    }
 }
 
 func postTodosHandler(c *gin.Context) {
@@ -94,7 +94,7 @@ func postTodosHandler(c *gin.Context) {
     }
 
     row := DB.QueryRow("INSERT INTO todos (title, status) VALUES ($1, $2) RETURNING id", json.Title, json.Status)
-    err = row.Scan(&json.ID)
+    err := row.Scan(&json.ID)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{ "error": err.Error() })
         return
@@ -102,20 +102,20 @@ func postTodosHandler(c *gin.Context) {
     c.JSON(http.StatusOK, json)
 }
 
-func putTodoHandler(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, err)
+func putTodosHandler(c *gin.Context) {
+    var json Todo
+    if err := c.ShouldBindJSON(&json); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{ "error": err.Error() })
         return
     }
+
+    DB.QueryRow("UPDATE todos SET title = $2, status = $3 WHERE id = $1", c.Param("id"), json.Title, json.Status)
+    c.JSON(http.StatusOK, gin.H{ "status": "success" })
 }
 
-func deleteTodoHandler(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, err)
-        return
-    }
+func deleteTodosHandler(c *gin.Context) {
+    DB.QueryRow("DELETE FROM todos WHERE id = $1", c.Param("id"))
+    c.JSON(http.StatusOK, gin.H{ "status": "deleted" })
 }
 
 func main() {
