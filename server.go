@@ -25,25 +25,25 @@ func init() {
     }
 }
 
+// SQL injection flaws
 func getTodosHandler(c *gin.Context) {
-    statusFilter := c.Query("status")
-    preparedStatement := "SELECT id, title, status FROM todos"
+    status := c.Query("status")
+    statement := "SELECT id, title, status FROM todos"
     filterNum := 0
-    // SQL injection flaws
-    if len(statusFilter) != 0 {
-        preparedStatement += " WHERE status = '" + statusFilter + "'"
+    if len(status) != 0 {
+        statement += " WHERE status = '" + status + "'"
         filterNum++
     }
-    titleFilter := c.Query("title")
-    if len(titleFilter) != 0 {
+    title := c.Query("title")
+    if len(title) != 0 {
         if filterNum == 0 {
-            preparedStatement += " WHERE "
+            statement += " WHERE "
         } else {
-            preparedStatement += " AND "
+            statement += " AND "
         }
-        preparedStatement += " title = '" + titleFilter + "'"
+        statement += " title = '" + title + "'"
     }
-    stmt, err := DB.Prepare(preparedStatement)
+    stmt, err := DB.Prepare(statement)
     if err != nil {
         c.JSON(http.StatusBadRequest, err)
         return
@@ -54,7 +54,7 @@ func getTodosHandler(c *gin.Context) {
         return
     }
 
-    var todos []Todo
+    todos := []Todo{}
     for rows.Next() {
         t := Todo{}
         rows.Scan(&t.ID, &t.Title, &t.Status)
@@ -64,8 +64,8 @@ func getTodosHandler(c *gin.Context) {
 }
 
 func getTodoByIDHandler(c *gin.Context) {
-    preparedStatement := "SELECT id, title, status FROM todos WHERE id = " + c.Param("id")
-    stmt, err := DB.Prepare(preparedStatement)
+    statement := "SELECT id, title, status FROM todos WHERE id = " + c.Param("id")
+    stmt, err := DB.Prepare(statement)
     if err != nil {
         c.JSON(http.StatusBadRequest, err)
         return
