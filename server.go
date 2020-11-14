@@ -15,20 +15,21 @@ type Todo struct {
     Status string `json:"status"`
 }
 
-var DB sql.DB
+var DB *sql.DB
 
 func init() {
-    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+    var err error
+    DB, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
     if err != nil {
         log.Fatal("DB connection error", err)
     }
-    DB = *db
 }
 
 func getTodosHandler(c *gin.Context) {
     statusFilter := c.Query("status")
     preparedStatement := "SELECT id, title, status FROM todos"
     filterNum := 0
+    // SQL injection flaws
     if len(statusFilter) != 0 {
         preparedStatement += " WHERE status = '" + statusFilter + "'"
         filterNum++
