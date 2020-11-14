@@ -122,12 +122,12 @@ func deleteTodosHandler(c *gin.Context) {
 func main() {
     defer DB.Close()
 
-    serv := gin.Default()
-    serv.GET("/todos", getTodosHandler)
-    serv.GET("/todos/:id", getTodoByIDHandler)
-    serv.POST("/todos", postTodosHandler)
-    serv.PUT("/todos/:id", putTodosHandler)
-    serv.DELETE("/todos/:id", deleteTodosHandler)
-    serv.Run(os.Getenv("PORT"))
+    srv := gin.Default()
+    srv.GET("/todos", getTodosHandler)
+    srv.GET("/todos/:id", getTodoByIDHandler)
+    srv.POST("/todos", postTodosHandler)
+    srv.PUT("/todos/:id", putTodosHandler)
+    srv.DELETE("/todos/:id", deleteTodosHandler)
+    srv.Run(os.Getenv("PORT"))
 }
 
